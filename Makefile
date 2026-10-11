@@ -33,6 +33,17 @@ LDFLAGS  = -specs=$(DEVKITPRO)/calico/share/ds9.specs -g $(ARCH) -Wl,-Map,$(notd
 LIBS    := -lnds9 -lcalico_ds9 -lmm9
 LIBDIRS := $(LIBNDS) $(DEVKITPRO)/calico
 
+ARM7ELF := $(firstword $(shell find $(DEVKITPRO) -type f -name 'ds7_sphynx.elf' 2>/dev/null))
+ifeq ($(strip $(ARM7ELF)),)
+ARM7ELF := $(firstword $(shell find $(DEVKITPRO) -type f \( -name 'ds7*.elf' -o -name 'default.elf' -o -name '*arm7*.elf' \) 2>/dev/null))
+endif
+
+ifeq ($(strip $(ARM7ELF)),)
+$(error "Nenhum arquivo ARM7 (.elf) válido foi encontrado em $(DEVKITPRO)")
+endif
+
+$(info ARM7 selecionado automaticamente: $(ARM7ELF))
+
 ifneq ($(BUILD),$(notdir $(CURDIR)))
 
 export OUTPUT   :=  $(CURDIR)/$(TARGET)
