@@ -19,9 +19,6 @@ jobs:
       - name: Verificar grit disponível
         run: which grit
 
-      - name: Diagnóstico ds_rules
-        run: cat $DEVKITARM/ds_rules
-
       - name: Build do .nds (verboso, para diagnóstico)
         run: make V=1 --debug=basic
 
