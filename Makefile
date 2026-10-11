@@ -88,9 +88,9 @@ $(PROJROOT)/build/dummy_arm7.bin:
 	$(CC) -specs=$(DEVKITPRO)/calico/share/ds7.specs $(PROJROOT)/build/dummy_arm7.c -o $(PROJROOT)/build/dummy_arm7.elf
 	$(OBJCOPY) -O binary $(PROJROOT)/build/dummy_arm7.elf $@
 
-$(OUTPUT).nds: $(OUTPUT).arm9
+$(OUTPUT).nds: $(OUTPUT).arm9 $(PROJROOT)/build/dummy_arm7.bin
 	ndstool -c $(OUTPUT).nds -9 $(OUTPUT).arm9 \
-		-7 $(DEVKITPRO)/libnds/default.arm7 \
+		-7 $(PROJROOT)/build/dummy_arm7.bin \
 		-g $(GAME_CODE) $(MAKER_CODE) "$(GAME_TITLE)" \
 		-b $(PROJROOT)/icon.bmp "$(GAME_TITLE);MKDDDS;$(TARGET)"
 
