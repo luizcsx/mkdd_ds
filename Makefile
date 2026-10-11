@@ -91,7 +91,8 @@ $(OUTPUT).elf: $(OFILES)
 $(CFILES:.c=.o): $(GFXHFILES)
 
 %.c %.h: %.png
-	grit $< -o$*
+	@echo $(notdir $<)
+	@grit $< -ff$(basename $<).grit -o$*
 
 %.o: %.c
 	@echo $(notdir $<)
