@@ -19,10 +19,9 @@ jobs:
       - name: Verificar grit disponível
         run: which grit
 
-      - name: Procurar default.arm7 / default.elf no container
+      - name: Listar assets da release default-arm7 (diagnóstico)
         run: |
-          find / -iname "default.arm7" -o -iname "default.elf" 2>/dev/null || true
-          ls -la /opt/devkitpro/libnds/ 2>&1 || true
+          curl -s https://api.github.com/repos/devkitPro/default-arm7/releases/latest
 
       - name: Build do .nds (verboso, para diagnóstico)
         run: make V=1 --debug=basic
