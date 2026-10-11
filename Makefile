@@ -2,6 +2,10 @@ ifeq ($(strip $(DEVKITARM)),)
 $(error "Please set DEVKITARM in your environment. export DEVKITARM=<path to>devkitARM")
 endif
 
+ifeq ($(strip $(DEVKITPRO)),)
+$(error "Please set DEVKITPRO in your environment. export DEVKITPRO=<path to>devkitPro")
+endif
+
 include $(DEVKITARM)/ds_rules
 
 #---------------------------------------------------------------------------------
@@ -33,10 +37,11 @@ CFLAGS  := -g -Wall -O2\
 CFLAGS  += $(INCLUDE) -DARM9
 CXXFLAGS    := $(CFLAGS) -fno-rtti -fno-exceptions
 ASFLAGS := -g $(ARCH)
-LDFLAGS  = -specs=ds_arm9.specs -g $(ARCH) -Wl,-Map,$(notdir $*.map)
+LDFLAGS  = -specs=$(DEVKITPRO)/calico/share/ds9.specs -g $(ARCH) -Wl,-Map,$(notdir $*.map)
 
-LIBS    := -lnds9 -lmm9
-LIBDIRS := $(LIBNDS)
+# A partir da base calico, libnds exige -lcalico_ds9 além das libs de sempre.
+LIBS    := -lnds9 -lcalico_ds9 -lmm9
+LIBDIRS := $(LIBNDS) $(DEVKITPRO)/calico
 
 #---------------------------------------------------------------------------------
 # no need to edit below this line
@@ -64,7 +69,8 @@ export OFILES := $(CPPFILES:.cpp=.o) $(CFILES:.c=.o) $(SFILES:.s=.o) \
 
 export INCLUDE := $(foreach dir,$(INCLUDES),-I$(CURDIR)/$(dir)) \
                    -I$(CURDIR)/$(BUILD) \
-                   -I$(LIBNDS)/include
+                   -I$(LIBNDS)/include \
+                   -I$(DEVKITPRO)/calico/include
 
 export LIBPATHS := $(foreach dir,$(LIBDIRS),-L$(dir)/lib)
 
