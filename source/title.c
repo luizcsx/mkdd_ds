@@ -5,10 +5,10 @@
 #include "Title_b_screen.h"
 
 void title_init(void) {
-    videoSetMode(MODE_FB0);
-    vramSetBankA(VRAM_A_LCD);
+    videoSetMode(MODE_5_2D);
+    vramSetBankA(VRAM_A_MAIN_BG);
 
-    videoSetModeSub(MODE_FB0);
+    videoSetModeSub(MODE_5_2D);
     vramSetBankC(VRAM_C_SUB_BG);
 
     int bg_main = bgInit(3, BgType_Bmp16, BgSize_B16_256x256, 0, 0);
