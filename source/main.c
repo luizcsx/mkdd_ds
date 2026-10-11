@@ -1,18 +1,23 @@
 #include <nds.h>
-
-void vblankHandler(void) {
-    soundVirtualVBlank();
-}
+#include "title.h"
 
 int main(void) {
-    readUserSettings();
-    ledBlink(0);
-    irqInit();
-    irqSet(IRQ_VBLANK, vblankHandler);
-    irqEnable(IRQ_VBLANK);
-    
+    AppState state = STATE_TITLE;
+
+    title_init();
+
     while (1) {
+        switch (state) {
+            case STATE_TITLE:
+                state = title_update();
+                break;
+
+            case STATE_MAIN_MENU:
+                break;
+        }
+
         swiWaitForVBlank();
     }
+
     return 0;
 }
