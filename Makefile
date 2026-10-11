@@ -100,10 +100,11 @@ $(PROJROOT)/build/dummy_arm7.bin:
 	$(OBJCOPY) -O binary $(PROJROOT)/build/dummy_arm7.elf $@
 
 $(OUTPUT).nds: $(OUTPUT).arm9
+	grit $(PROJROOT)/icon.bmp -gb -gB4 -gT FF00FF -m! -p! -ftb -o$(PROJROOT)/build/icon_fixed
 	ndstool -c $(OUTPUT).nds -9 $(OUTPUT).arm9 \
 		-7 $(ARM7ELF) \
 		-g $(GAME_CODE) $(MAKER_CODE) "$(GAME_TITLE)" \
-		-b $(PROJROOT)/icon.bmp "$(GAME_TITLE);MKDDDS;$(TARGET)"
+		-b $(PROJROOT)/build/icon_fixed.bmp "$(GAME_TITLE);MKDDDS;$(TARGET)"
 
 $(OUTPUT).arm9: $(OUTPUT).elf
 	$(OBJCOPY) -O binary $< $@
