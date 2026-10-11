@@ -1,0 +1,8 @@
+build/
+*.nds
+*.elf
+*.arm9
+*.map
+
+gfx/*.c
+gfx/*.h
