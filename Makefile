@@ -14,7 +14,7 @@ SOURCES     := source
 INCLUDES    := include build
 GFXDIR      := gfx
 
-GAME_TITLE  := MARIOKART
+GAME_TITLE  := MKDDDS
 GAME_CODE   := MKDD
 MAKER_CODE  := 00
 
