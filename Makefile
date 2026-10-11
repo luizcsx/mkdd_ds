@@ -8,25 +8,16 @@ endif
 
 include $(DEVKITARM)/ds_rules
 
-#---------------------------------------------------------------------------------
-# TARGET, dirs
-#---------------------------------------------------------------------------------
 TARGET      := mkddds
 BUILD       := build
 SOURCES     := source
 INCLUDES    := include build
 GFXDIR      := gfx
 
-#---------------------------------------------------------------------------------
-# Game / ROM header info
-#---------------------------------------------------------------------------------
 GAME_TITLE  := MARIOKART
 GAME_CODE   := MKDD
 MAKER_CODE  := 00
 
-#---------------------------------------------------------------------------------
-# flags
-#---------------------------------------------------------------------------------
 ARCH    := -mthumb -mthumb-interwork
 
 CFLAGS  := -g -Wall -O2\
@@ -34,18 +25,14 @@ CFLAGS  := -g -Wall -O2\
            -ffast-math \
            $(ARCH)
 
-CFLAGS  += $(INCLUDE) -DARM9
+CFLAGS  += $(INCLUDE) -D__NDS__ -DARM9
 CXXFLAGS    := $(CFLAGS) -fno-rtti -fno-exceptions
 ASFLAGS := -g $(ARCH)
 LDFLAGS  = -specs=$(DEVKITPRO)/calico/share/ds9.specs -g $(ARCH) -Wl,-Map,$(notdir $*.map)
 
-# A partir da base calico, libnds exige -lcalico_ds9 além das libs de sempre.
 LIBS    := -lnds9 -lcalico_ds9 -lmm9
 LIBDIRS := $(LIBNDS) $(DEVKITPRO)/calico
 
-#---------------------------------------------------------------------------------
-# no need to edit below this line
-#---------------------------------------------------------------------------------
 ifneq ($(BUILD),$(notdir $(CURDIR)))
 
 export OUTPUT  :=  $(CURDIR)/$(TARGET)
@@ -59,8 +46,6 @@ CFILES     := $(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.c)))
 CPPFILES   := $(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.cpp)))
 SFILES     := $(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.s)))
 
-# PNGs em gfx/ viram .c/.h via grit (regra abaixo); listamos aqui pra
-# garantir que entrem na build como fonte gerada.
 PNGFILES   := $(foreach dir,$(GFXDIR),$(notdir $(wildcard $(dir)/*.png)))
 GFXCFILES  := $(PNGFILES:.png=.c)
 
