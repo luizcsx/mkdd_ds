@@ -37,6 +37,8 @@ ifneq ($(BUILD),$(notdir $(CURDIR)))
 
 export OUTPUT  :=  $(CURDIR)/$(TARGET)
 
+export LD      := $(CC)
+
 export VPATH   := $(foreach dir,$(SOURCES),$(CURDIR)/$(dir)) \
                    $(foreach dir,$(GFXDIR),$(CURDIR)/$(dir))
 
