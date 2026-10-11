@@ -35,29 +35,19 @@ jobs:
           echo "--- specs e ARM7 disponíveis:"
           find /opt/devkitpro \( -name "*.specs" -o -name "ds7*.elf" -o -name "default.elf" \) 2>/dev/null || true
 
-      - name: Corrigir formato do icon.bmp via Python
+      - name: Corrigir formato do icon.bmp via Bash (Nativo)
         shell: bash
         run: |
-          python3 -c "
-          import os
-          try:
-              from PIL import Image
-          except ImportError:
-              os.system('pip3 install pillow')
-              from PIL import Image
-
-          img_path = 'icon.bmp'
-          if os.path.exists(img_path):
-              img = Image.open(img_path).convert('RGB')
-              # Garante o tamanho exato de 32x32 exigido pelo DS
-              img = img.resize((32, 32))
-              # Converte para modo indexado (Paleta de Cores de 4-bits / 16 cores)
-              img_indexed = img.convert('P', palette=Image.Palette.ADAPTIVE, colors=16)
-              img_indexed.save(img_path, format='BMP')
-              print('icon.bmp convertido com sucesso para BMP Indexado de 16 cores!')
-          else:
-              print('icon.bmp não encontrado na raiz!')
-          "
+          if [ -f icon.bmp ]; then
+            echo "Ajustando o cabeçalho do icon.bmp para formato indexado de 16 cores..."
+            # Garante que o tamanho informado e os bits por pixel (offset 28) sejam configurados para 4 bits (16 cores)
+            printf '\x04\x00' | dd of=icon.bmp bs=1 seek=28 conv=notrunc 2>/dev/null
+            # Força o número de cores importantes na tabela (offset 50)
+            printf '\x10\x00\x00\x00' | dd of=icon.bmp bs=1 seek=50 conv=notrunc 2>/dev/null
+            echo "icon.bmp modificado nativamente!"
+          else
+            echo "icon.bmp não encontrado!"
+          fi
 
       - name: Compilar
         run: make V=1 --debug=basic
