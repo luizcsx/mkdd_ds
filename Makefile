@@ -8,7 +8,6 @@ endif
 TARGET      := mkddds
 BUILD       := build
 SOURCES     := source
-GFX         := gfx
 
 GAME_TITLE  := MARIOKART
 GAME_CODE   := MKDD
@@ -20,44 +19,33 @@ OBJCOPY := $(DEVKITARM)/bin/arm-none-eabi-objcopy
 LIBNDS  := $(DEVKITPRO)/libnds
 CALICO  := $(DEVKITPRO)/calico
 
-SPECS := $(CALICO)/share/ds9.specs
-ifeq ($(wildcard $(SPECS)),)
-$(error Nao achei $(SPECS))
-endif
+SPECS9  := $(CALICO)/share/ds9.specs
+SPECS7  := $(LIBNDS)/specs/ds7.specs
 
-ARM7ELF := $(firstword $(shell find $(DEVKITPRO) -type f -name 'ds7_sphynx.elf' 2>/dev/null))
-ifeq ($(strip $(ARM7ELF)),)
-ARM7ELF := $(firstword $(shell find $(DEVKITPRO) -type f \( -name 'ds7*.elf' -o -name 'default.elf' -o -name '*arm7*.elf' \) 2>/dev/null))
-endif
-
-ifeq ($(strip $(ARM7ELF)),)
-$(error Nenhum arquivo ARM7 (.elf) válido foi encontrado em $(DEVKITPRO))
-endif
-
-$(info ARM7 selecionado automaticamente: $(ARM7ELF))
-ARM7ARG := -7 $(ARM7ELF)
-ARM7_TODOS := $(shell find $(DEVKITPRO) -type f \( -name 'ds7*.elf' -o -name 'default.elf' -o -name '*arm7*.elf' \) 2>/dev/null | sort)
-
-ARCH    := -march=armv5te -mtune=arm946e-s
-CFLAGS  := -g -Wall -O2 -fomit-frame-pointer -ffast-math $(ARCH) \
-           -specs=$(SPECS) -D__NDS__ -D__ARM9__ -DARM9 \
+ARCH9   := -march=armv5te -mtune=arm946e-s
+CFLAGS  := -g -Wall -O2 -fomit-frame-pointer -ffast-math $(ARCH9) \
+           -specs=$(SPECS9) -D__NDS__ -D__ARM9__ -DARM9 \
            -Iinclude -I$(LIBNDS)/include -I$(CALICO)/include -I$(BUILD)
-LDFLAGS := -specs=$(SPECS) -g $(ARCH) -Wl,-Map,$(BUILD)/$(TARGET).map
+LDFLAGS := -specs=$(SPECS9) -g $(ARCH9) -Wl,-Map,$(BUILD)/$(TARGET).map
 LIBS    := -L$(LIBNDS)/lib -L$(CALICO)/lib -Wl,--start-group -lnds9 -lcalico_ds9 -lmm9 -Wl,--end-group
 
-CFILES     := $(wildcard $(SOURCES)/*.c)
-PNGFILES   := $(wildcard $(GFX)/*.png)
-GFXHDRS    := $(patsubst $(GFX)/%.png,$(BUILD)/%.h,$(PNGFILES))
-OBJS       := $(patsubst $(SOURCES)/%.c,$(BUILD)/%.o,$(CFILES)) \
-              $(patsubst $(GFX)/%.png,$(BUILD)/%.o,$(PNGFILES))
+CFILES   := $(wildcard $(SOURCES)/*.c)
+PNGFILES := $(wildcard gfx/*.png)
+GFXHDRS  := $(patsubst gfx/%.png,$(BUILD)/%.h,$(PNGFILES))
+OBJS     := $(patsubst $(SOURCES)/%.c,$(BUILD)/%.o,$(CFILES)) \
+            $(patsubst gfx/%.png,$(BUILD)/%.o,$(PNGFILES))
 
 .SECONDARY:
 .PHONY: all clean variantes
 
 all: $(TARGET).nds
 
-$(TARGET).nds: $(BUILD)/$(TARGET).elf $(GAME_ICON)
-	LC_ALL=C.UTF-8 ndstool -c $@ -9 $< $(ARM7ARG) -b $(GAME_ICON) "$(GAME_TITLE);MKDDDS;$(TARGET)" -g $(GAME_CODE) $(MAKER_CODE) "MARIOKART"
+$(BUILD)/custom_arm7.bin: source_arm7.c | $(BUILD)
+	$(CC) -O2 -march=armv4t -mtune=arm7tdmi -specs=ds7.specs $< -L$(LIBNDS)/lib -lnds7 -o $(BUILD)/custom_arm7.elf
+	$(OBJCOPY) -O binary $(BUILD)/custom_arm7.elf $@
+
+$(TARGET).nds: $(BUILD)/$(TARGET).elf $(BUILD)/custom_arm7.bin $(GAME_ICON)
+	LC_ALL=C.UTF-8 ndstool -c $@ -9 $< -7 $(BUILD)/custom_arm7.bin -b $(GAME_ICON) "$(GAME_TITLE);MKDDDS;$(TARGET)" -g $(GAME_CODE) $(MAKER_CODE) "MARIOKART"
 
 $(BUILD)/$(TARGET).elf: $(OBJS)
 	$(CC) $(LDFLAGS) $(OBJS) $(LIBS) -o $@
@@ -66,22 +54,17 @@ $(BUILD)/%.o: $(SOURCES)/%.c $(GFXHDRS) | $(BUILD)
 	$(CC) $(CFLAGS) -c $< -o $@
 
 $(BUILD)/%.o: $(BUILD)/%.s
-	$(CC) $(ARCH) -x assembler-with-cpp -c $< -o $@
+	$(CC) $(ARCH9) -x assembler-with-cpp -c $< -o $@
 
-$(BUILD)/%.s $(BUILD)/%.h: $(GFX)/%.png | $(BUILD)
+$(BUILD)/%.s $(BUILD)/%.h: gfx/%.png | $(BUILD)
 	grit $< -gb -gB8 -gT FF00FF -m! -fts -o$(BUILD)/$*
 
 $(BUILD):
 	mkdir -p $@
 
-variantes: $(BUILD)/$(TARGET).elf $(GAME_ICON)
+variantes: $(TARGET).nds
 	@mkdir -p $(BUILD)/variantes
-	@for a in $(ARM7_TODOS); do \
-	  n=$$(basename $$a .elf); \
-	  echo "ROM de teste com o ARM7 $$n"; \
-	  LC_ALL=C.UTF-8 ndstool -c $(BUILD)/variantes/$(TARGET)_$$n.nds -9 $< -7 $$a -b $(GAME_ICON) "$(GAME_TITLE);MKDDDS;$(TARGET)" -g $(GAME_CODE) $(MAKER_CODE) "MARIOKART" || true; \
-	done
-	@ls -la $(BUILD)/variantes
+	cp $(TARGET).nds $(BUILD)/variantes/$(TARGET)_funcional.nds
 
 clean:
 	rm -rf $(BUILD) $(TARGET).nds
