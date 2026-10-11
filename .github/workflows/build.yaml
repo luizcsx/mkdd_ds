@@ -1,0 +1,30 @@
+name: Build MKDDDS ROM
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container: devkitpro/devkitarm
+
+    steps:
+      - name: Checkout repositório
+        uses: actions/checkout@v4
+
+      - name: Instalar grit (conversão de assets gráficos)
+        run: |
+          dkp-pacman -Sy --noconfirm grit
+
+      - name: Build do .nds
+        run: make
+
+      - name: Publicar artefato
+        uses: actions/upload-artifact@v4
+        with:
+          name: rom-nds
+          path: mkddds.nds
