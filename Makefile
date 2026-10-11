@@ -53,7 +53,8 @@ GFXHFILES  := $(PNGFILES:.png=.h)
 export OFILES := $(CPPFILES:.cpp=.o) $(CFILES:.c=.o) $(SFILES:.s=.o) \
                   $(GFXCFILES:.c=.o)
 
-export GFXHFILES := $(GFXHFILES)
+export SRCCFILES := $(CFILES)
+export GFXHFILES  := $(GFXHFILES)
 
 export INCLUDE := $(foreach dir,$(INCLUDES),-I$(CURDIR)/$(dir)) \
                    -I$(CURDIR)/$(BUILD) \
@@ -88,11 +89,10 @@ $(OUTPUT).arm9: $(OUTPUT).elf
 
 $(OUTPUT).elf: $(OFILES)
 
-$(CFILES:.c=.o): $(GFXHFILES)
+$(SRCCFILES:.c=.o): $(GFXHFILES)
 
-%.c %.h: %.png
-	@echo $(notdir $<)
-	@grit $< -ff$(basename $<).grit -o$*
+%.c %.h: %.png %.grit
+	grit $< -ff$(subst .c,.grit,$(subst %,%,$*.grit)) -o$*
 
 %.o: %.c
 	@echo $(notdir $<)
