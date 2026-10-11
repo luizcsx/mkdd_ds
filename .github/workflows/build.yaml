@@ -2,91 +2,25 @@ name: Build MKDDDS ROM
 
 on:
   push:
+    branches: [ main ]
   pull_request:
+    branches: [ main ]
   workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    container: devkitpro/devkitarm:latest
+    container: devkitpro/devkitarm
 
     steps:
-      - name: Baixar o código
+      - name: Checkout repositório
         uses: actions/checkout@v4
 
-      - name: Garantir libnds, grit e ndstool
-        shell: bash
-        run: |
-          if command -v grit >/dev/null && command -v ndstool >/dev/null && [ -d /opt/devkitpro/libnds ]; then
-            echo "Ferramentas já presentes na imagem."
-          else
-            for i in 1 2 3; do
-              dkp-pacman -S --needed --noconfirm nds-dev && break
-              echo "Tentativa $i falhou; aguardando 20 s..."
-              sleep 20
-            done
-          fi
-          if ! find /opt/devkitpro -type f \( -name "ds7*.elf" -o -name "default.elf" -o -name "*arm7*.elf" \) 2>/dev/null | grep -q .; then
-            echo "ARM7 padrão não encontrado; tentando instalar default-arm7..."
-            dkp-pacman -S --needed --noconfirm default-arm7 || true
-          fi
-          which grit ndstool
-          ls /opt/devkitpro/libnds /opt/devkitpro/calico
-          echo "--- specs e ARM7 disponíveis:"
-          find /opt/devkitpro \( -name "*.specs" -o -name "ds7*.elf" -o -name "default.elf" \) 2>/dev/null || true
+      - name: Build do .nds
+        run: make
 
-      - name: Corrigir formato do icon.bmp via Bash (Nativo)
-        shell: bash
-        run: |
-          if [ -f icon.bmp ]; then
-            echo "Ajustando o cabeçalho do icon.bmp para formato indexado de 16 cores..."
-            # Garante que o tamanho informado e os bits por pixel (offset 28) sejam configurados para 4 bits (16 cores)
-            printf '\x04\x00' | dd of=icon.bmp bs=1 seek=28 conv=notrunc 2>/dev/null
-            # Força o número de cores importantes na tabela (offset 50)
-            printf '\x10\x00\x00\x00' | dd of=icon.bmp bs=1 seek=50 conv=notrunc 2>/dev/null
-            echo "icon.bmp modificado nativamente!"
-          else
-            echo "icon.bmp não encontrado!"
-          fi
-
-      - name: Compilar
-        run: make V=1 --debug=basic
-
-      - name: Gerar variantes com cada ARM7 (para achar o que funciona)
-        run: make variantes
-
-      - name: Onde ficou o ROM?
-        if: always()
-        shell: bash
-        run: |
-          echo "Pasta atual: $(pwd)"
-          ls -la
-          echo "--- .nds e .elf encontrados:"
-          find . -type f \( -name "*.nds" -o -name "*.elf" \) -not -path "./.git/*" || true
-          echo "--- Tamanho do programa ARM9:"
-          "$DEVKITARM/bin/arm-none-eabi-size" build/*.elf || true
-          ls -la *.nds || true
-          echo "--- TARGET e BUILD no Makefile:"
-          grep -nE '^(TARGET|BUILD)\b' Makefile || true
-
-      - name: Conferir que existe um ROM
-        shell: bash
-        run: |
-          if ! find . -type f -name "*.nds" -not -path "./.git/*" | grep -q .; then
-            echo "::error::O make terminou, mas nenhum .nds foi gerado. Veja o passo 'Onde ficou o ROM?' e o log do passo 'Compilar'."
-            exit 1
-          fi
-
-      - name: Guardar o ROM
+      - name: Publicar artefato
         uses: actions/upload-artifact@v4
         with:
           name: rom-nds
-          path: "**/*.nds"
-          if-no-files-found: error
-
-      - name: Guardar as variantes (uma ROM por ARM7)
-        uses: actions/upload-artifact@v4
-        with:
-          name: rom-variantes
-          path: "build/variantes/*.nds"
-          if-no-files-found: error
+          path: mkddds.nds
