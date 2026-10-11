@@ -1,128 +1,100 @@
 ifeq ($(strip $(DEVKITARM)),)
-$(error "Please set DEVKITARM in your environment. export DEVKITARM=<path to>devkitARM")
+$(error Defina DEVKITARM)
 endif
-
 ifeq ($(strip $(DEVKITPRO)),)
-$(error "Please set DEVKITPRO in your environment. export DEVKITPRO=<path to>devkitPro")
+$(error Defina DEVKITPRO)
 endif
 
-include $(DEVKITARM)/ds_rules
+TARGET  := mkddds
+BUILD   := build
+SOURCES := source
+GFX     := gfx
+FONTS   := fonts
+AUDIO   := audio
 
-TARGET      := mkddds
-BUILD       := build
-SOURCES     := source
-INCLUDES    := include build
-GFXDIR      := gfx
+GAME_TITLE     := MARIO KART DDDS
+GAME_ICON      := icon.bmp
 
-GAME_TITLE  := MARIOKART
-GAME_CODE   := MKDD
-MAKER_CODE  := 00
+CC      := $(DEVKITARM)/bin/arm-none-eabi-gcc
+OBJCOPY := $(DEVKITARM)/bin/arm-none-eabi-objcopy
+LIBNDS  := $(DEVKITPRO)/libnds
+CALICO  := $(DEVKITPRO)/calico
 
-ARCH    := -mthumb -mthumb-interwork
-
-CFLAGS  := -g -Wall -O2\
-           -march=armv5te -mtune=arm946e-s -fomit-frame-pointer\
-           -ffast-math \
-           $(ARCH)
-
-CFLAGS  += $(INCLUDE) -D__NDS__ -DARM9
-CXXFLAGS    := $(CFLAGS) -fno-rtti -fno-exceptions
-ASFLAGS := -g $(ARCH)
-LDFLAGS  = -specs=$(DEVKITPRO)/calico/share/ds9.specs -g $(ARCH) -Wl,-Map,$(notdir $*.map)
-
-LIBS    := -lnds9 -lcalico_ds9 -lmm9
-LIBDIRS := $(LIBNDS) $(DEVKITPRO)/calico
+SPECS := $(CALICO)/share/ds9.specs
+ifeq ($(wildcard $(SPECS)),)
+$(error Nao achei $(SPECS). Rode: find $(DEVKITPRO) -name \"*.specs\")
+endif
 
 ARM7ELF := $(firstword $(shell find $(DEVKITPRO) -type f -name 'ds7_sphynx.elf' 2>/dev/null))
 ifeq ($(strip $(ARM7ELF)),)
-ARM7ELF := $(firstword $(shell find $(DEVKITPRO) -type f \( -name 'ds7*.elf' -o -name 'default.elf' -o -name '*arm7*.elf' \) 2>/dev/null))
+$(error ds7_sphynx.elf nao encontrado. Rode: find $(DEVKITPRO) -name \"*.elf\")
 endif
+$(info ARM7 fixado: $(ARM7ELF))
+ARM7ARG := -7 $(ARM7ELF)
+ARM7_TODOS := $(shell find $(DEVKITPRO) -type f \( -name 'ds7*.elf' -o -name 'default.elf' -o -name '*arm7*.elf' \) 2>/dev/null | sort)
 
-ifeq ($(strip $(ARM7ELF)),)
-$(error "Nenhum arquivo ARM7 (.elf) válido foi encontrado em $(DEVKITPRO)")
-endif
+ARCH    := -march=armv5te -mtune=arm946e-s
+CFLAGS  := -g -Wall -O2 -fomit-frame-pointer -ffast-math $(ARCH) \
+           -specs=$(SPECS) -D__NDS__ -D__ARM9__ -DARM9 \
+           -I$(LIBNDS)/include -I$(CALICO)/include -I$(BUILD)
+LDFLAGS := -specs=$(SPECS) -g $(ARCH) -Wl,-Map,$(BUILD)/$(TARGET).map
+LIBS    := -L$(LIBNDS)/lib -L$(CALICO)/lib -Wl,--start-group -lnds9 -lcalico_ds9 -lmm9 -Wl,--end-group
 
-$(info ARM7 selecionado automaticamente: $(ARM7ELF))
+CFILES     := $(wildcard $(SOURCES)/*.c)
+PNGFILES   := $(wildcard $(GFX)/*.png)
+FONTFILES  := $(wildcard $(FONTS)/*.NFTR)
+AUDIOFILES := $(wildcard $(AUDIO)/*.wav $(AUDIO)/*.mod $(AUDIO)/*.xm $(AUDIO)/*.it $(AUDIO)/*.s3m)
+GFXHDRS    := $(patsubst $(GFX)/%.png,$(BUILD)/%.h,$(PNGFILES))
+FONTOBJS   := $(patsubst $(FONTS)/%.NFTR,$(BUILD)/%.nftr.o,$(FONTFILES))
+OBJS       := $(patsubst $(SOURCES)/%.c,$(BUILD)/%.o,$(CFILES)) \
+              $(patsubst $(GFX)/%.png,$(BUILD)/%.o,$(PNGFILES)) \
+              $(FONTOBJS) \
+              $(BUILD)/soundbank_data.o \
+              $(BUILD)/navigation_button_pcm.o
 
-ifneq ($(BUILD),$(notdir $(CURDIR)))
+.SECONDARY:
+.PHONY: all clean variantes
 
-export OUTPUT   :=  $(CURDIR)/$(TARGET)
-export PROJROOT := $(CURDIR)
+all: $(TARGET).nds
 
-export LD      := $(CC)
+$(TARGET).nds: $(BUILD)/$(TARGET).elf $(GAME_ICON)
+	LC_ALL=C.UTF-8 ndstool -c $@ -9 $< $(ARM7ARG) -b $(GAME_ICON) "$(GAME_TITLE);$(GAME_SUBTITLE1);$(GAME_SUBTITLE2)" -g HIED 00 "ENTRELINHAS"
 
-export VPATH   := $(foreach dir,$(SOURCES),$(CURDIR)/$(dir)) \
-                   $(foreach dir,$(GFXDIR),$(CURDIR)/$(dir))
+$(BUILD)/$(TARGET).elf: $(OBJS)
+	$(CC) $(LDFLAGS) $(OBJS) $(LIBS) -o $@
 
-export DEPSDIR := $(CURDIR)/$(BUILD)
+$(BUILD)/%.o: $(SOURCES)/%.c $(GFXHDRS) $(BUILD)/soundbank.h | $(BUILD)
+	$(CC) $(CFLAGS) -c $< -o $@
 
-CFILES     := $(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.c)))
-CPPFILES   := $(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.cpp)))
-SFILES     := $(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.s)))
+$(BUILD)/%.nftr.o: $(FONTS)/%.NFTR | $(BUILD)
+	$(OBJCOPY) -I binary -O elf32-littlearm -B arm $< $@
 
-PNGFILES   := $(foreach dir,$(GFXDIR),$(notdir $(wildcard $(dir)/*.png)))
-GFXCFILES  := $(PNGFILES:.png=.c)
-GFXHFILES  := $(PNGFILES:.png=.h)
+$(BUILD)/soundbank.bin $(BUILD)/soundbank.h: $(AUDIOFILES) | $(BUILD)
+	mmutil -d $(AUDIOFILES) -o$(BUILD)/soundbank.bin -h$(BUILD)/soundbank.h
 
-export OFILES := $(CPPFILES:.cpp=.o) $(CFILES:.c=.o) $(SFILES:.s=.o) \
-                  $(GFXCFILES:.c=.o)
+$(BUILD)/soundbank_data.o: $(SOURCES)/soundbank_data.s $(BUILD)/soundbank.bin | $(BUILD)
+	$(CC) $(ARCH) -x assembler-with-cpp -c $< -o $@
 
-export SRCCFILES := $(CFILES)
-export GFXHFILES  := $(GFXHFILES)
+$(BUILD)/navigation_button_pcm.o: $(SOURCES)/navigation_button_pcm.s $(SOURCES)/navigation_button_pcm.bin | $(BUILD)
+	$(CC) $(ARCH) -x assembler-with-cpp -c $< -o $@
 
-export INCLUDE := $(foreach dir,$(INCLUDES),-I$(CURDIR)/$(dir)) \
-                   -I$(CURDIR)/$(BUILD) \
-                   -I$(LIBNDS)/include \
-                   -I$(DEVKITPRO)/calico/include
+$(BUILD)/%.o: $(BUILD)/%.s
+	$(CC) $(ARCH) -x assembler-with-cpp -c $< -o $@
 
-export LIBPATHS := $(foreach dir,$(LIBDIRS),-L$(dir)/lib)
-
-.PHONY: $(BUILD) clean
+$(BUILD)/%.s $(BUILD)/%.h: $(GFX)/%.png | $(BUILD)
+	grit $< -gb -gB8 -gT FF00FF -m! -fts -o$(BUILD)/$*
 
 $(BUILD):
-	@[ -d $@ ] || mkdir -p $@
-	@$(MAKE) --no-print-directory -C $(BUILD) -f $(CURDIR)/Makefile
+	mkdir -p $@
+
+variantes: $(BUILD)/$(TARGET).elf $(GAME_ICON)
+	@mkdir -p $(BUILD)/variantes
+	@for a in $(ARM7_TODOS); do \
+	  n=$$(basename $$a .elf); \
+	  echo "ROM de teste com o ARM7 $$n"; \
+	  LC_ALL=C.UTF-8 ndstool -c $(BUILD)/variantes/$(TARGET)_$$n.nds -9 $< -7 $$a -b $(GAME_ICON) "$(GAME_TITLE);$(GAME_SUBTITLE1);$(GAME_SUBTITLE2)" -g HIED 00 "ENTRELINHAS" || true; \
+	done
+	@ls -la $(BUILD)/variantes
 
 clean:
-	@echo clean ...
-	@rm -fr $(BUILD) $(TARGET).elf $(TARGET).nds $(TARGET).arm9
-
-else
-
-DEPENDS := $(OFILES:.o=.d)
-
-all: $(OUTPUT).nds
-
-$(PROJROOT)/build/dummy_arm7.bin:
-	@mkdir -p $(PROJROOT)/build
-	@echo "int main(void) { return 0; }" > $(PROJROOT)/build/dummy_arm7.c
-	$(CC) -specs=$(DEVKITPRO)/calico/share/ds7.specs $(PROJROOT)/build/dummy_arm7.c -o $(PROJROOT)/build/dummy_arm7.elf
-	$(OBJCOPY) -O binary $(PROJROOT)/build/dummy_arm7.elf $@
-
-$(OUTPUT).nds: $(OUTPUT).arm9
-	ndstool -c $(OUTPUT).nds -9 $(OUTPUT).arm9 \
-		-7 $(ARM7ELF) \
-		-g $(GAME_CODE) $(MAKER_CODE) "$(GAME_TITLE)" \
-		-b $(PROJROOT)/icon.bmp "$(GAME_TITLE);MKDDDS;$(TARGET)"
-
-$(OUTPUT).arm9: $(OUTPUT).elf
-	$(OBJCOPY) -O binary $< $@
-
-$(OUTPUT).elf: $(OFILES)
-
-$(SRCCFILES:.c=.o): $(GFXHFILES)
-
-%.c %.h: %.png %.grit
-	grit $< -ff $(word 2,$^) -o$*
-
-%.o: %.c
-	@echo $(notdir $<)
-	$(CC) -MMD -MP -MF $(DEPSDIR)/$*.d $(CFLAGS) -c $< -o $@
-
-%.o: %.s
-	@echo $(notdir $<)
-	$(CC) -MMD -MP -MF $(DEPSDIR)/$*.d $(ASFLAGS) -c $< -o $@
-
--include $(DEPENDS)
-
-endif
+	rm -rf $(BUILD) $(TARGET).nds
