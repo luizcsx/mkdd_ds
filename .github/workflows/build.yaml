@@ -19,15 +19,6 @@ jobs:
       - name: Verificar grit disponível
         run: which grit
 
-      - name: Diagnóstico do ds_rules (temporário)
-        run: |
-          echo "--- $DEVKITARM/ds_rules ---"
-          cat $DEVKITARM/ds_rules
-          echo "--- ls \$DEVKITPRO ---"
-          ls $DEVKITPRO
-          echo "--- ls \$DEVKITPRO/calico (se existir) ---"
-          ls $DEVKITPRO/calico 2>&1 || true
-
       - name: Build do .nds
         run: make
 
