@@ -90,8 +90,8 @@ $(OUTPUT).elf: $(OFILES)
 
 $(CFILES:.c=.o): $(GFXHFILES)
 
-%.c %.h: %.png %.grit
-	grit $< -ff$(subst .c,.grit,$(subst %,%,$*.grit)) -o$*
+%.c %.h: %.png
+	grit $< -o$*
 
 %.o: %.c
 	@echo $(notdir $<)
