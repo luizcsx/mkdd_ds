@@ -19,9 +19,8 @@ jobs:
       - name: Verificar grit disponível
         run: which grit
 
-      - name: Listar assets da release default-arm7 (diagnóstico)
-        run: |
-          curl -s https://api.github.com/repos/devkitPro/default-arm7/releases/latest
+      - name: Instalar default-arm7 via dkp-pacman
+        run: dkp-pacman -Sy --noconfirm default-arm7
 
       - name: Build do .nds (verboso, para diagnóstico)
         run: make V=1 --debug=basic
