@@ -16,9 +16,8 @@ jobs:
       - name: Checkout repositório
         uses: actions/checkout@v4
 
-      - name: Instalar grit (conversão de assets gráficos)
-        run: |
-          dkp-pacman -Sy --noconfirm grit
+      - name: Verificar grit disponível
+        run: which grit
 
       - name: Build do .nds
         run: make
