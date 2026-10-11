@@ -84,6 +84,7 @@ all: $(OUTPUT).nds
 
 $(OUTPUT).nds: $(OUTPUT).arm9
 	ndstool -c $(OUTPUT).nds -9 $(OUTPUT).arm9 \
+		-7 $(DEVKITPRO)/libnds/default.arm7 \
 		-g $(GAME_CODE) $(MAKER_CODE) "$(GAME_TITLE)" \
 		-b $(PROJROOT)/icon.bmp "$(GAME_TITLE);MKDDDS;$(TARGET)"
 
