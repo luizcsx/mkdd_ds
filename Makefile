@@ -1,70 +1,109 @@
 ifeq ($(strip $(DEVKITARM)),)
-$(error Defina DEVKITARM no ambiente)
+$(error Please set DEVKITARM in your environment)
 endif
 ifeq ($(strip $(DEVKITPRO)),)
-$(error Defina DEVKITPRO no ambiente)
+$(error Please set DEVKITPRO in your environment)
 endif
+
+include $(DEVKITARM)/ds_rules
 
 TARGET      := mkddds
 BUILD       := build
 SOURCES     := source
+INCLUDES    := include build
+GFXDIR      := gfx
 
 GAME_TITLE  := MARIOKART
 GAME_CODE   := MKDD
 MAKER_CODE  := 00
-GAME_ICON   := icon.bmp
 
-CC      := $(DEVKITARM)/bin/arm-none-eabi-gcc
-OBJCOPY := $(DEVKITARM)/bin/arm-none-eabi-objcopy
-LIBNDS  := $(DEVKITPRO)/libnds
-CALICO  := $(DEVKITPRO)/calico
+ARCH    := -mthumb -mthumb-interwork
 
-SPECS9  := $(CALICO)/share/ds9.specs
-SPECS7  := $(LIBNDS)/specs/ds7.specs
+CFLAGS  := -g -Wall -O2\
+           -march=armv5te -mtune=arm946e-s -fomit-frame-pointer\
+           -ffast-math \
+           $(ARCH)
 
-ARCH9   := -march=armv5te -mtune=arm946e-s
-CFLAGS  := -g -Wall -O2 -fomit-frame-pointer -ffast-math $(ARCH9) \
-           -specs=$(SPECS9) -D__NDS__ -D__ARM9__ -DARM9 \
-           -Iinclude -I$(LIBNDS)/include -I$(CALICO)/include -I$(BUILD)
-LDFLAGS := -specs=$(SPECS9) -g $(ARCH9) -Wl,-Map,$(BUILD)/$(TARGET).map
-LIBS    := -L$(LIBNDS)/lib -L$(CALICO)/lib -Wl,--start-group -lnds9 -lcalico_ds9 -lmm9 -Wl,--end-group
+CFLAGS  += $(INCLUDE) -D__NDS__ -DARM9
+CXXFLAGS    := $(CFLAGS) -fno-rtti -fno-exceptions
+ASFLAGS := -g $(ARCH)
+LDFLAGS  = -specs=$(DEVKITPRO)/calico/share/ds9.specs -g $(ARCH) -Wl,-Map,$(notdir $*.map)
 
-CFILES   := $(wildcard $(SOURCES)/*.c)
-PNGFILES := $(wildcard gfx/*.png)
-GFXHDRS  := $(patsubst gfx/%.png,$(BUILD)/%.h,$(PNGFILES))
-OBJS     := $(patsubst $(SOURCES)/%.c,$(BUILD)/%.o,$(CFILES)) \
-            $(patsubst gfx/%.png,$(BUILD)/%.o,$(PNGFILES))
+LIBS    := -lnds9 -lcalico_ds9 -lmm9
+LIBDIRS := $(LIBNDS) $(DEVKITPRO)/calico
 
-.SECONDARY:
-.PHONY: all clean variantes
+ifneq ($(BUILD),$(notdir $(CURDIR)))
 
-all: $(TARGET).nds
+export OUTPUT   :=  $(CURDIR)/$(TARGET)
+export PROJROOT := $(CURDIR)
 
-$(BUILD)/custom_arm7.bin: source_arm7.c | $(BUILD)
-	$(CC) -O2 -march=armv4t -mtune=arm7tdmi -specs=ds7.specs $< -L$(LIBNDS)/lib -lnds7 -o $(BUILD)/custom_arm7.elf
-	$(OBJCOPY) -O binary $(BUILD)/custom_arm7.elf $@
+export LD      := $(CC)
 
-$(TARGET).nds: $(BUILD)/$(TARGET).elf $(BUILD)/custom_arm7.bin $(GAME_ICON)
-	LC_ALL=C.UTF-8 ndstool -c $@ -9 $< -7 $(BUILD)/custom_arm7.bin -b $(GAME_ICON) "$(GAME_TITLE);MKDDDS;$(TARGET)" -g $(GAME_CODE) $(MAKER_CODE) "MARIOKART"
+export VPATH   := $(foreach dir,$(SOURCES),$(CURDIR)/$(dir)) \
+                   $(foreach dir,$(GFXDIR),$(CURDIR)/$(dir))
 
-$(BUILD)/$(TARGET).elf: $(OBJS)
-	$(CC) $(LDFLAGS) $(OBJS) $(LIBS) -o $@
+export DEPSDIR := $(CURDIR)/$(BUILD)
 
-$(BUILD)/%.o: $(SOURCES)/%.c $(GFXHDRS) | $(BUILD)
-	$(CC) $(CFLAGS) -c $< -o $@
+CFILES     := $(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.c)))
+CPPFILES   := $(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.cpp)))
+SFILES     := $(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.s)))
 
-$(BUILD)/%.o: $(BUILD)/%.s
-	$(CC) $(ARCH9) -x assembler-with-cpp -c $< -o $@
+PNGFILES   := $(foreach dir,$(GFXDIR),$(notdir $(wildcard $(dir)/*.png)))
+GFXCFILES  := $(PNGFILES:.png=.c)
+GFXHFILES  := $(PNGFILES:.png=.h)
 
-$(BUILD)/%.s $(BUILD)/%.h: gfx/%.png | $(BUILD)
-	grit $< -gb -gB8 -gT FF00FF -m! -fts -o$(BUILD)/$*
+export OFILES := $(CPPFILES:.cpp=.o) $(CFILES:.c=.o) $(SFILES:.s=.o) \
+                  $(GFXCFILES:.c=.o)
+
+export SRCCFILES := $(CFILES)
+export GFXHFILES  := $(GFXHFILES)
+
+export INCLUDE := $(foreach dir,$(INCLUDES),-I$(CURDIR)/$(dir)) \
+                   -I$(CURDIR)/$(BUILD) \
+                   -I$(LIBNDS)/include \
+                   -I$(DEVKITPRO)/calico/include
+
+export LIBPATHS := $(foreach dir,$(LIBDIRS),-L$(dir)/lib)
+
+.PHONY: $(BUILD) clean
 
 $(BUILD):
-	mkdir -p $@
-
-variantes: $(TARGET).nds
-	@mkdir -p $(BUILD)/variantes
-	cp $(TARGET).nds $(BUILD)/variantes/$(TARGET)_funcional.nds
+	@[ -d $@ ] || mkdir -p $@
+	@$(MAKE) --no-print-directory -C $(BUILD) -f $(CURDIR)/Makefile
 
 clean:
-	rm -rf $(BUILD) $(TARGET).nds
+	@echo clean ...
+	@rm -fr $(BUILD) $(TARGET).elf $(TARGET).nds $(TARGET).arm9
+
+else
+
+DEPENDS := $(OFILES:.o=.d)
+
+all: $(OUTPUT).nds
+
+$(OUTPUT).nds: $(OUTPUT).arm9
+	ndstool -c $(OUTPUT).nds -9 $(OUTPUT).arm9 -7 $(DEVKITPRO)/calico/bin/ds7_maine.elf \
+		-g $(GAME_CODE) $(MAKER_CODE) "$(GAME_TITLE)" \
+		-b $(PROJROOT)/icon.bmp "$(GAME_TITLE);MKDDDS;$(TARGET)"
+
+$(OUTPUT).arm9: $(OUTPUT).elf
+	$(OBJCOPY) -O binary $< $@
+
+$(OUTPUT).elf: $(OFILES)
+
+$(SRCCFILES:.c=.o): $(GFXHFILES)
+
+%.c %.h: %.png %.grit
+	grit $< -ff $(word 2,$^) -o$*
+
+%.o: %.c
+	@echo $(notdir $<)
+	$(CC) -MMD -MP -MF $(DEPSDIR)/$*.d $(CFLAGS) -c $< -o $@
+
+%.o: %.s
+	@echo $(notdir $<)
+	$(CC) -MMD -MP -MF $(DEPSDIR)/$*.d $(ASFLAGS) -c $< -o $@
+
+-include $(DEPENDS)
+
+endif
