@@ -19,6 +19,11 @@ jobs:
       - name: Verificar grit disponível
         run: which grit
 
+      - name: Procurar default.arm7 / default.elf no container
+        run: |
+          find / -iname "default.arm7" -o -iname "default.elf" 2>/dev/null || true
+          ls -la /opt/devkitpro/libnds/ 2>&1 || true
+
       - name: Build do .nds (verboso, para diagnóstico)
         run: make V=1 --debug=basic
 
