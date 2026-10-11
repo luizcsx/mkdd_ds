@@ -14,7 +14,7 @@ SOURCES     := source
 INCLUDES    := include build
 GFXDIR      := gfx
 
-GAME_TITLE  := MKDDDS
+GAME_TITLE  := MARIOKART
 GAME_CODE   := MKDD
 MAKER_CODE  := 00
 
@@ -35,7 +35,8 @@ LIBDIRS := $(LIBNDS) $(DEVKITPRO)/calico
 
 ifneq ($(BUILD),$(notdir $(CURDIR)))
 
-export OUTPUT  :=  $(CURDIR)/$(TARGET)
+export OUTPUT   :=  $(CURDIR)/$(TARGET)
+export PROJROOT := $(CURDIR)
 
 export LD      := $(CC)
 
@@ -84,7 +85,7 @@ all: $(OUTPUT).nds
 $(OUTPUT).nds: $(OUTPUT).arm9
 	ndstool -c $(OUTPUT).nds -9 $(OUTPUT).arm9 \
 		-g $(GAME_CODE) $(MAKER_CODE) "$(GAME_TITLE)" \
-		-b $(CURDIR)/icon.bmp "$(GAME_TITLE);MKDDDS;$(TARGET)"
+		-b $(PROJROOT)/icon.bmp "$(GAME_TITLE);MKDDDS;$(TARGET)"
 
 $(OUTPUT).arm9: $(OUTPUT).elf
 	$(OBJCOPY) -O binary $< $@
