@@ -83,8 +83,7 @@ all: $(OUTPUT).nds
 
 $(OUTPUT).nds: $(OUTPUT).arm9
 	ndstool -c $(OUTPUT).nds -9 $(OUTPUT).arm9 \
-		-b $(wildcard $(CURDIR)/icon.bmp) "$(GAME_TITLE);MKDDDS;$(TARGET)" \
-		-g $(GAME_CODE) $(MAKER_CODE)
+		-g $(GAME_CODE) $(MAKER_CODE) "$(GAME_TITLE);MKDDDS;$(TARGET)"
 
 $(OUTPUT).arm9: $(OUTPUT).elf
 	$(OBJCOPY) -O binary $< $@
