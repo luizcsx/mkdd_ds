@@ -2,31 +2,101 @@ name: Build MKDDDS ROM
 
 on:
   push:
-    branches: [ main ]
   pull_request:
-    branches: [ main ]
   workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    container: devkitpro/devkitarm
+    container: devkitpro/devkitarm:latest
 
     steps:
-      - name: Checkout repositório
+      - name: Baixar o código
         uses: actions/checkout@v4
 
-      - name: Verificar grit disponível
-        run: which grit
+      - name: Garantir libnds, grit e ndstool
+        shell: bash
+        run: |
+          if command -v grit >/dev/null && command -v ndstool >/dev/null && [ -d /opt/devkitpro/libnds ]; then
+            echo "Ferramentas já presentes na imagem."
+          else
+            for i in 1 2 3; do
+              dkp-pacman -S --needed --noconfirm nds-dev && break
+              echo "Tentativa $i falhou; aguardando 20 s..."
+              sleep 20
+            done
+          fi
+          if ! find /opt/devkitpro -type f \( -name "ds7*.elf" -o -name "default.elf" -o -name "*arm7*.elf" \) 2>/dev/null | grep -q .; then
+            echo "ARM7 padrão não encontrado; tentando instalar default-arm7..."
+            dkp-pacman -S --needed --noconfirm default-arm7 || true
+          fi
+          which grit ndstool
+          ls /opt/devkitpro/libnds /opt/devkitpro/calico
+          echo "--- specs e ARM7 disponíveis:"
+          find /opt/devkitpro \( -name "*.specs" -o -name "ds7*.elf" -o -name "default.elf" \) 2>/dev/null || true
 
-      - name: Instalar default-arm7 via dkp-pacman
-        run: sudo dkp-pacman -Syu --noconfirm nds-dev
+      - name: Corrigir formato do icon.bmp via Python
+        shell: bash
+        run: |
+          python3 -c "
+          import os
+          try:
+              from PIL import Image
+          except ImportError:
+              os.system('pip3 install pillow')
+              from PIL import Image
 
-      - name: Build do .nds (verboso, para diagnóstico)
+          img_path = 'icon.bmp'
+          if os.path.exists(img_path):
+              img = Image.open(img_path).convert('RGB')
+              # Garante o tamanho exato de 32x32 exigido pelo DS
+              img = img.resize((32, 32))
+              # Converte para modo indexado (Paleta de Cores de 4-bits / 16 cores)
+              img_indexed = img.convert('P', palette=Image.Palette.ADAPTIVE, colors=16)
+              img_indexed.save(img_path, format='BMP')
+              print('icon.bmp convertido com sucesso para BMP Indexado de 16 cores!')
+          else:
+              print('icon.bmp não encontrado na raiz!')
+          "
+
+      - name: Compilar
         run: make V=1 --debug=basic
 
-      - name: Publicar artefato
+      - name: Gerar variantes com cada ARM7 (para achar o que funciona)
+        run: make variantes
+
+      - name: Onde ficou o ROM?
+        if: always()
+        shell: bash
+        run: |
+          echo "Pasta atual: $(pwd)"
+          ls -la
+          echo "--- .nds e .elf encontrados:"
+          find . -type f \( -name "*.nds" -o -name "*.elf" \) -not -path "./.git/*" || true
+          echo "--- Tamanho do programa ARM9:"
+          "$DEVKITARM/bin/arm-none-eabi-size" build/*.elf || true
+          ls -la *.nds || true
+          echo "--- TARGET e BUILD no Makefile:"
+          grep -nE '^(TARGET|BUILD)\b' Makefile || true
+
+      - name: Conferir que existe um ROM
+        shell: bash
+        run: |
+          if ! find . -type f -name "*.nds" -not -path "./.git/*" | grep -q .; then
+            echo "::error::O make terminou, mas nenhum .nds foi gerado. Veja o passo 'Onde ficou o ROM?' e o log do passo 'Compilar'."
+            exit 1
+          fi
+
+      - name: Guardar o ROM
         uses: actions/upload-artifact@v4
         with:
           name: rom-nds
-          path: mkddds.nds
+          path: "**/*.nds"
+          if-no-files-found: error
+
+      - name: Guardar as variantes (uma ROM por ARM7)
+        uses: actions/upload-artifact@v4
+        with:
+          name: rom-variantes
+          path: "build/variantes/*.nds"
+          if-no-files-found: error
