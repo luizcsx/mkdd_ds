@@ -92,7 +92,7 @@ $(OUTPUT).elf: $(OFILES)
 $(SRCCFILES:.c=.o): $(GFXHFILES)
 
 %.c %.h: %.png %.grit
-	grit $< -ff$(subst .c,.grit,$(subst %,%,$*.grit)) -o$*
+	grit $< -ff $(word 2,$^) -o$*
 
 %.o: %.c
 	@echo $(notdir $<)
