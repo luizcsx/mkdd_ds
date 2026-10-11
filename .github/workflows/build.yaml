@@ -19,8 +19,8 @@ jobs:
       - name: Verificar grit disponível
         run: which grit
 
-      - name: Build do .nds
-        run: make
+      - name: Build do .nds (verboso, para diagnóstico)
+        run: make V=1 --debug=basic
 
       - name: Publicar artefato
         uses: actions/upload-artifact@v4
