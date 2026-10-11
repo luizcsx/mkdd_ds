@@ -19,6 +19,16 @@ jobs:
       - name: Build do .nds
         run: make
 
+      - name: Diagnóstico dos headers gerados pelo grit
+        run: |
+          echo "--- Title_t_screen.h ---"
+          head -c 2000 build/Title_t_screen.h
+          echo ""
+          echo "--- tamanho do .c gerado ---"
+          wc -c build/Title_t_screen.c
+          echo "--- primeiros valores do array (hexdump) ---"
+          grep -A5 "Bitmap\[\]" build/Title_t_screen.c | head -10
+
       - name: Publicar artefato
         uses: actions/upload-artifact@v4
         with:
