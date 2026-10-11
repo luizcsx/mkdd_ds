@@ -20,7 +20,7 @@ jobs:
         run: which grit
 
       - name: Instalar default-arm7 via dkp-pacman
-        run: dkp-pacman -Sy --noconfirm default-arm7
+        run: sudo dkp-pacman -Syu --noconfirm nds-dev
 
       - name: Build do .nds (verboso, para diagnóstico)
         run: make V=1 --debug=basic
